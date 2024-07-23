@@ -46,13 +46,16 @@ def connect_to_database():
         port=db_config.get('port', 3306)  # Use port from config or default to 3306
     )
 
-# Function to create the table if it doesn't exist
+
+# Function to create the table and add missing columns if they do not exist
 def create_table_if_not_exists(cursor):
+    # Create the table if it doesn't exist
     create_table_query = '''
     CREATE TABLE IF NOT EXISTS cg_timetracker (
         ID INT AUTO_INCREMENT PRIMARY KEY,
         Time_Started DATETIME,
         Duration VARCHAR(255),
+        Seconds INT,
         Time_Ended DATETIME,
         Application_Name VARCHAR(255),
         Window_Name VARCHAR(255),
@@ -63,18 +66,30 @@ def create_table_if_not_exists(cursor):
     )
     '''
     cursor.execute(create_table_query)
+    
+    # Add the 'Seconds' column if it does not exist
+    try:
+        cursor.execute('''
+            ALTER TABLE cg_timetracker ADD COLUMN Seconds INT
+        ''')
+    except mysql.connector.Error as err:
+        if err.errno == 1060:  # Column already exists
+            pass
+        else:
+            print(f"Error adding column: {err}")
 
 # Function to insert data into MySQL table
 def insert_into_database(cursor, log_entry):
     insert_query = '''
     INSERT INTO cg_timetracker (
-        Time_Started, Duration, Time_Ended, Application_Name, Window_Name,
+        Time_Started, Duration, Seconds, Time_Ended, Application_Name, Window_Name,
         Project_Name, Client, Tags, Current_User_Name
-    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     '''
     cursor.execute(insert_query, (
         log_entry["Time Started"],
         log_entry["Duration"],
+        log_entry["Seconds"],
         log_entry["Time Ended"],
         log_entry["Application Name"],
         log_entry["Window Name"],
@@ -91,12 +106,13 @@ def write_to_csv(log_entry):
         writer = csv.writer(file)
         if not file_exists:
             writer.writerow([
-                "Time Started", "Duration", "Time Ended", "Application Name", "Window Name",
+                "Time Started", "Duration", "Seconds", "Time Ended", "Application Name", "Window Name",
                 "Project Name", "Client", "Tags", "Current User"
             ])
         writer.writerow([
             log_entry["Time Started"],
             log_entry["Duration"],
+            log_entry["Seconds"],
             log_entry["Time Ended"],
             log_entry["Application Name"],
             log_entry["Window Name"],
@@ -184,6 +200,7 @@ while is_active:
             log_entry = {
                 "Time Started": current_time.strftime("%Y/%m/%d %H:%M:%S"),
                 "Duration": format_time_span(duration),
+                "Seconds": duration,
                 "Time Ended": current_time.strftime("%Y/%m/%d %H:%M:%S"),
                 "Application Name": application_name,
                 "Window Name": active_window_title if active_window_title else "Unknown",
@@ -234,6 +251,7 @@ while is_active:
                 log_entry = {
                     "Time Started": idle_start_time.strftime("%Y/%m/%d %H:%M:%S"),
                     "Duration": format_time_span(duration),
+                    "Seconds": duration,
                     "Time Ended": current_time.strftime("%Y/%m/%d %H:%M:%S"),
                     "Application Name": "Unknown",
                     "Window Name": "Idle",
