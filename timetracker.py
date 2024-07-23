@@ -59,7 +59,7 @@ def create_table_if_not_exists(cursor):
         Project_Name VARCHAR(255),
         Client VARCHAR(255),
         Tags VARCHAR(255),
-        Current_User VARCHAR(255)
+        Current_User_Name VARCHAR(255)
     )
     '''
     cursor.execute(create_table_query)
@@ -69,7 +69,7 @@ def insert_into_database(cursor, log_entry):
     insert_query = '''
     INSERT INTO cg_timetracker (
         Time_Started, Duration, Time_Ended, Application_Name, Window_Name,
-        Project_Name, Client, Tags, Current_User
+        Project_Name, Client, Tags, Current_User_Name
     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
     '''
     cursor.execute(insert_query, (
